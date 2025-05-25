@@ -15,10 +15,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final hiveService = context.read<HiveService>();
-    _usernameController = TextEditingController(
-      text: hiveService.getUsername(),
-    );
+    final hiveService = Provider.of<HiveService>(context, listen: false);
+    _usernameController = TextEditingController(text: hiveService.getUsername());
   }
 
   @override
@@ -29,7 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hiveService = context.read<HiveService>();
+    final hiveService = Provider.of<HiveService>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -41,7 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Nome de Usuário Local',
+              'Nome de Usuário',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             TextField(
@@ -54,11 +52,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ElevatedButton(
               onPressed: () async {
                 await hiveService.setUsername(_usernameController.text);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Nome de usuário salvo!')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Nome salvo com sucesso!')),
+                  );
+                }
               },
-              child: const Text('Salvar'),
+              child: const Text('Salvar Configurações'),
             ),
           ],
         ),

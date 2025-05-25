@@ -2,51 +2,51 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import '../models/emergency_image.dart';
 
 class BluetoothService {
-  final String serviceUuid = "INSIRA_UUID_SERVICO_AQUI";
-  final String characteristicUuid = "INSIRA_UUID_CHARACTERISTIC_AQUI";
+  static const serviceUuid = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
+  static const characteristicUuid = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 
-  Future<void> initialize() async {
-    // TODO: Implementar inicialização do Bluetooth
+  Future<void> shareImage(EmergencyImage image) async {
+    try {
+      if (!await FlutterBluePlus.isAvailable) return;
+
+      // 1. Verificar e ligar Bluetooth
+      if (await FlutterBluePlus.adapterState.first == BluetoothAdapterState.off) {
+        await FlutterBluePlus.turnOn();
+      }
+
+      // 2. Procurar dispositivos
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
+
+      // 3. Conectar e enviar para cada dispositivo
+      await for (var scanResult in FlutterBluePlus.scanResults) {
+        for (var result in scanResult) {
+          if (result.advertisementData.connectable) {
+            try {
+              await result.device.connect(autoConnect: false);
+
+              // Enviar dados (implementação simplificada)
+              final services = await result.device.discoverServices();
+              for (var service in services) {
+                if (service.serviceUuid.toString().toUpperCase() == serviceUuid) {
+                  for (var characteristic in service.characteristics) {
+                    if (characteristic.characteristicUuid.toString().toUpperCase() == characteristicUuid) {
+                      await characteristic.write([1, 2, 3]); // Dados de exemplo
+                    }
+                  }
+                }
+              }
+
+              await result.device.disconnect();
+            } catch (e) {
+              continue;
+            }
+          }
+        }
+      }
+
+      await FlutterBluePlus.stopScan();
+    } catch (e) {
+      rethrow;
+    }
   }
-
-  Future<bool> isBluetoothAvailable() async {
-    // TODO: Implementar verificação
-    return false;
-  }
-
-  Future<void> turnOnBluetooth() async {
-    // TODO: Implementar ativação
-  }
-
-  Future<List<BluetoothDevice>> scanNearbyDevices({
-    Duration timeout = const Duration(seconds: 10),
-  }) async {
-    // TODO: Implementar scan
-    return [];
-  }
-
-  Future<void> connectToDevice(BluetoothDevice device) async {
-    // TODO: Implementar conexão
-  }
-
-  Future<void> disconnectDevice(BluetoothDevice device) async {
-    // TODO: Implementar desconexão
-  }
-
-  Future<void> sendImageToDevice({
-    required BluetoothDevice device,
-    required EmergencyImage image,
-  }) async {
-    // TODO: Implementar envio da imagem
-  }
-
-  Future<void> setupImageReceiver() async {
-    // TODO: Implementar recebimento
-  }
-
-  Future<void> stopAllOperations() async {
-    // TODO: Implementar parada
-  }
-
-  Future<void> shareImage(EmergencyImage image) async {}
 }
