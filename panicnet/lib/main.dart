@@ -83,7 +83,7 @@ class PanicApp extends StatelessWidget {
     Provider.of<ShakeDetectorService>(context, listen: false).startListening();
 
     return MaterialApp(
-      title: 'PanicApp',
+      title: 'PanicNet',
       theme: ThemeData(
         primarySwatch: Colors.red,
         visualDensity: VisualDensity.adaptivePlatformDensity,

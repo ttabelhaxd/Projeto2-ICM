@@ -12,7 +12,7 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('PanicApp'),
+        title: const Text('PanicNet'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
