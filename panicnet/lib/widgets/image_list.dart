@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../modals/image_modal.dart';
 import '../models/emergency_image.dart';
 
 class ImageList extends StatelessWidget {
@@ -22,21 +23,34 @@ class ImageList extends StatelessWidget {
       itemCount: images.length,
       itemBuilder: (context, index) {
         final image = images[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          child: ListTile(
-            leading: Image.file(
-              File(image.imagePath),
-              width: 50,
-              height: 50,
-              fit: BoxFit.cover,
+        return GestureDetector(
+          onTap: () => _showImageModal(context, image),
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 10),
+            child: ListTile(
+              leading: ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.file(
+                  File(image.imagePath),
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              title: Text('Enviado em: ${_formatDate(image.timestamp)}'),
+              subtitle: Text('Status: ${image.synced ? "Enviado" : "Pendente"}'),
+              trailing: const Icon(Icons.zoom_in),
             ),
-            title: Text('Enviado em: ${_formatDate(image.timestamp)}'),
-            subtitle: Text('Status: ${image.synced ? "Enviado" : "Pendente"}'),
-            trailing: const Icon(Icons.chevron_right),
           ),
         );
       },
+    );
+  }
+
+  void _showImageModal(BuildContext context, EmergencyImage image) {
+    showDialog(
+      context: context,
+      builder: (context) => ImageModal(image: image),
     );
   }
 
