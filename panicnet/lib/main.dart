@@ -15,13 +15,18 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    await _initializeHive();
+    await Hive.initFlutter();
+    if (!Hive.isAdapterRegistered(EmergencyImageAdapter().typeId)) {
+      Hive.registerAdapter(EmergencyImageAdapter());
+    }
+    await Hive.openBox<EmergencyImage>('emergencyImages');
+    await Hive.openBox('settings');
 
     runApp(
       MultiProvider(
         providers: [
           Provider(create: (_) => BluetoothService()),
-          Provider(
+          ChangeNotifierProvider(
             create: (_) => HiveService(
               Hive.box<EmergencyImage>('emergencyImages'),
               Hive.box('settings'),
@@ -38,7 +43,7 @@ void main() async {
             ),
           ),
         ],
-        child: const EmergencySharingApp(),
+        child: const PanicApp(),
       ),
     );
   } catch (e) {
@@ -52,15 +57,6 @@ void main() async {
       ),
     );
   }
-}
-
-Future<void> _initializeHive() async {
-  await Hive.initFlutter();
-  if (!Hive.isAdapterRegistered(EmergencyImageAdapter().typeId)) {
-    Hive.registerAdapter(EmergencyImageAdapter());
-  }
-  await Hive.openBox<EmergencyImage>('emergencyImages');
-  await Hive.openBox('settings');
 }
 
 Future<void> _handleShake(BuildContext context) async {
@@ -79,15 +75,15 @@ Future<void> _handleShake(BuildContext context) async {
   }
 }
 
-class EmergencySharingApp extends StatelessWidget {
-  const EmergencySharingApp({super.key});
+class PanicApp extends StatelessWidget {
+  const PanicApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     Provider.of<ShakeDetectorService>(context, listen: false).startListening();
 
     return MaterialApp(
-      title: 'Emergency Sharing',
+      title: 'PanicApp',
       theme: ThemeData(
         primarySwatch: Colors.red,
         visualDensity: VisualDensity.adaptivePlatformDensity,

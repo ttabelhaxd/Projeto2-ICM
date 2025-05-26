@@ -1,8 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/emergency_image.dart';
 import '../services/bluetooth_service.dart';
-import 'dart:io';
+import '../services/hive_service.dart';
 
 class CameraScreen extends StatelessWidget {
   final EmergencyImage emergencyImage;
@@ -15,6 +16,7 @@ class CameraScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bluetoothService = Provider.of<BluetoothService>(context);
+    final hiveService = Provider.of<HiveService>(context, listen: false);
 
     return Scaffold(
       appBar: AppBar(
@@ -36,7 +38,11 @@ class CameraScreen extends StatelessWidget {
                 ),
                 onPressed: () async {
                   await bluetoothService.shareImage(emergencyImage);
-                  if (context.mounted) Navigator.pop(context);
+                  if (context.mounted) {
+                    emergencyImage.synced = true;
+                    await hiveService.saveImage(emergencyImage);
+                    Navigator.pop(context);
+                  }
                 },
                 child: const Text(
                   'ENVIAR PARA DISPOSITIVOS PRÓXIMOS',

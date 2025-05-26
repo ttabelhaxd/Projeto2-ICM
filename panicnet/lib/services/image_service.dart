@@ -12,15 +12,14 @@ class ImageService {
     final XFile? image = await _picker.pickImage(
       source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.rear,
-      imageQuality: 70,
+      imageQuality: 85,
     );
 
     if (image != null) {
-      final username = hiveService.getUsername();
       final emergencyImage = EmergencyImage(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         imagePath: image.path,
-        username: username,
+        username: hiveService.getUsername(),
       );
 
       await hiveService.saveImage(emergencyImage);

@@ -1,5 +1,4 @@
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import '../models/emergency_image.dart';
 
@@ -26,15 +25,22 @@ class ImageList extends StatelessWidget {
         return Card(
           margin: const EdgeInsets.only(bottom: 10),
           child: ListTile(
-            leading: Image.file(File(image.imagePath)),
-            title: Text('Enviado em: ${image.timestamp.toString()}'),
+            leading: Image.file(
+              File(image.imagePath),
+              width: 50,
+              height: 50,
+              fit: BoxFit.cover,
+            ),
+            title: Text('Enviado em: ${_formatDate(image.timestamp)}'),
             subtitle: Text('Status: ${image.synced ? "Enviado" : "Pendente"}'),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-            },
           ),
         );
       },
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
   }
 }

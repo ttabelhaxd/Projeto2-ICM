@@ -10,11 +10,9 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hiveService = Provider.of<HiveService>(context);
-
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Sharing'),
+        title: const Text('PanicApp'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -30,24 +28,28 @@ class HomeScreen extends StatelessWidget {
           const EmergencyButton(showManualOption: true),
           const SizedBox(height: 20),
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Histórico de Emergências',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+            child: Consumer<HiveService>(
+              builder: (context, hiveService, child) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Histórico de Emergências',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: ImageList(images: hiveService.getAllImages()),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: ImageList(images: hiveService.getAllImages()),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
           ),
         ],

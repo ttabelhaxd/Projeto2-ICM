@@ -1,7 +1,8 @@
 import 'package:hive/hive.dart';
+import 'package:flutter/foundation.dart';
 import '../models/emergency_image.dart';
 
-class HiveService {
+class HiveService with ChangeNotifier {
   final Box<EmergencyImage> imageBox;
   final Box settingsBox;
 
@@ -9,6 +10,7 @@ class HiveService {
 
   Future<void> saveImage(EmergencyImage image) async {
     await imageBox.put(image.id, image);
+    notifyListeners();
   }
 
   List<EmergencyImage> getAllImages() {
@@ -22,9 +24,11 @@ class HiveService {
 
   Future<void> setUsername(String username) async {
     await settingsBox.put('username', username);
+    notifyListeners();
   }
 
   Future<void> clearAllData() async {
     await imageBox.clear();
+    notifyListeners();
   }
 }
