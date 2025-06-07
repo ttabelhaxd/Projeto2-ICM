@@ -1,3 +1,4 @@
+// Updated gallery_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -18,26 +19,35 @@ class _GalleryPageState extends State<GalleryPage> {
   @override
   void initState() {
     super.initState();
-    _loadImages();
+    _loadAllImages();
   }
 
-  void _loadImages() {
-    List<String>? storedImages = box.get('panic_images');
-    if (storedImages != null) {
-      setState(() {
-        images =
-            storedImages
-                .map((json) => PanicImage.fromJson(jsonDecode(json)))
-                .toList();
-      });
+  void _loadAllImages() {
+    final allKeys = box.keys.where((key) => key.toString().startsWith('conversation_')).toList();
+    List<PanicImage> allImages = [];
+
+    for (var key in allKeys) {
+      List<String>? storedImages = box.get(key);
+      if (storedImages != null) {
+        allImages.addAll(
+          storedImages.map((json) => PanicImage.fromJson(jsonDecode(json))),
+        );
+      }
     }
+
+    // Sort by timestamp (newest first)
+    allImages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+
+    setState(() {
+      images = allImages;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Histórico de Alertas'),
+        title: const Text('Emergency Alerts Gallery'),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -54,7 +64,7 @@ class _GalleryPageState extends State<GalleryPage> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Nenhum alerta registrado',
+          'No emergency alerts recorded',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
@@ -72,60 +82,81 @@ class _GalleryPageState extends State<GalleryPage> {
         ),
         itemCount: images.length,
         itemBuilder: (context, index) {
-          return GestureDetector(
-            onTap: () => _showImageDetails(images[index]),
-            child: Hero(
-              tag: 'image-$index',
-              child: ClipRRect(
+          return _buildImageCard(images[index]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildImageCard(PanicImage image) {
+    return GestureDetector(
+      onTap: () => _showImageDetails(image),
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: Image.memory(
+                image.imageBytes,
+                fit: BoxFit.cover,
+              ),
+            ),
+            Container(
+              decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    Image.memory(
-                      images[index].imageBytes,
-                      fit: BoxFit.cover,
-                    ),
-                    Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.7),
-                            Colors.transparent,
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 8,
-                      left: 8,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            images[index].sender,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            DateFormat('dd/MM HH:mm').format(images[index].timestamp),
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.7),
+                    Colors.transparent,
                   ],
                 ),
               ),
             ),
-          );
-        },
+            Positioned(
+              bottom: 8,
+              left: 8,
+              right: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    image.sender,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    DateFormat('MMM dd, HH:mm').format(image.timestamp),
+                    style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                    ),
+                  ),
+                  if (image.message.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        image.message,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -146,7 +177,6 @@ class _GalleryPageState extends State<GalleryPage> {
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Barra de arraste
               Container(
                 width: 40,
                 height: 4,
@@ -170,27 +200,27 @@ class _GalleryPageState extends State<GalleryPage> {
                       const SizedBox(height: 16),
                       _buildDetailRow(
                         icon: Icons.person,
-                        title: 'Remetente',
+                        title: 'Sender',
                         value: image.sender,
                       ),
                       _buildDetailRow(
                         icon: Icons.calendar_today,
-                        title: 'Data',
-                        value: DateFormat('dd/MM/yyyy').format(image.timestamp),
+                        title: 'Date',
+                        value: DateFormat('MMMM dd, yyyy').format(image.timestamp),
                       ),
                       _buildDetailRow(
                         icon: Icons.access_time,
-                        title: 'Hora',
+                        title: 'Time',
                         value: DateFormat('HH:mm:ss').format(image.timestamp),
                       ),
                       _buildDetailRow(
                         icon: Icons.location_on,
-                        title: 'Localização',
+                        title: 'Location',
                         value: image.location,
                       ),
                       _buildDetailRow(
                         icon: Icons.message,
-                        title: 'Mensagem',
+                        title: 'Message',
                         value: image.message,
                       ),
                       const SizedBox(height: 24),
@@ -202,7 +232,7 @@ class _GalleryPageState extends State<GalleryPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Fechar'),
+                        child: const Text('Close'),
                       ),
                     ],
                   ),

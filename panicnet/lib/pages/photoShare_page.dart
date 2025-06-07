@@ -3,15 +3,12 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:panicnet/models/panic_image.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:camera/camera.dart';
-import 'package:intl/intl.dart';
-
 import '../providers/gesture_provider.dart';
 
 class PhotoSharePage extends StatefulWidget {
@@ -32,50 +29,27 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
   final _box = Hive.box('panicnet');
   late String user = _box.get('user');
   late CameraController _cameraController;
-  late String _currentConversationKey;
-  List<PanicImage> _currentConversationImages = [];
+  List<PanicImage> _images = [];
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
-  StreamSubscription<AccelerometerEvent>? _accelerometerStreamSubscription;
+  late StreamSubscription<AccelerometerEvent> _accelerometerStreamSubscription;
   bool _cameraOpen = false;
 
   @override
   void initState() {
     super.initState();
-    _currentConversationKey = PanicImage.getConversationKey(user, widget.device);
     _initializeLocalNotifications();
     _setupPayloadListener();
-    _loadCurrentConversationImages();
+    _loadImages();
     _initializeCamera();
     _setupShakeDetection();
   }
 
-  void _loadCurrentConversationImages() async {
-    List<String>? imagesJson = _box.get(_currentConversationKey);
-    if (imagesJson != null) {
-      print("Carregando ${imagesJson.length} imagens da conversa com ${widget.device}");
-      setState(() {
-        _currentConversationImages = imagesJson
-            .map((json) => PanicImage.fromJson(jsonDecode(json)))
-            .toList();
-      });
-    }
-  }
-
-  void _setupShakeDetection() {
-    _accelerometerStreamSubscription =
-        accelerometerEventStream().listen((event) {
-          final gestureProvider = Provider.of<GestureProvider>(context, listen: false);
-          gestureProvider.updateAccelerometerData(event);
-
-          if (!_cameraOpen) {
-            gestureProvider.detectShake(event);
-            if (gestureProvider.isShaking) {
-              _openCamera();
-              gestureProvider.resetValues();
-            }
-          }
-        });
+  @override
+  void dispose() {
+    _accelerometerStreamSubscription.cancel();
+    _cameraController.dispose();
+    super.dispose();
   }
 
   void _initializeLocalNotifications() async {
@@ -100,118 +74,88 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
         0, title, body, platformChannelSpecifics);
   }
 
+  void _setupShakeDetection() {
+    _accelerometerStreamSubscription =
+        accelerometerEventStream().listen((event) {
+          if (event.x.abs() > 1) {
+            final gestureProvider =
+            Provider.of<GestureProvider>(context, listen: false);
+            gestureProvider.updateAccelerometerData(event);
+            gestureProvider.detectShake(event);
+
+            if (gestureProvider.isShaking && !_cameraOpen) {
+              _openCamera();
+            }
+          }
+        });
+  }
+
   void _initializeCamera() async {
     final cameras = await availableCameras();
-    final backCamera = cameras.firstWhere(
-          (camera) => camera.lensDirection == CameraLensDirection.back,
-      orElse: () => cameras.first,
-    );
-    _cameraController = CameraController(backCamera, ResolutionPreset.medium);
+    final backCamera = cameras.first;
+    _cameraController = CameraController(backCamera, ResolutionPreset.high);
     await _cameraController.initialize();
   }
 
   void _setupPayloadListener() {
-    Nearby().acceptConnection(
-      widget.endpointId,
-      onPayLoadRecieved: (endid, payload) async {
-        if (payload.type == PayloadType.BYTES) {
-          try {
-            String receivedData = utf8.decode(payload.bytes!);
-            print("Dados recebidos: $receivedData");
-
-            var data = jsonDecode(receivedData);
-
-            if (data['receiver'] == user) {
-              var panicImage = PanicImage.fromJson(data);
-
-              setState(() {
-                _currentConversationImages.add(panicImage);
-                _saveCurrentConversationImages();
-              });
-
-              _showNotification(
-                'Alerta de ${panicImage.sender}',
-                panicImage.message,
-              );
-            }
-          } catch (e) {
-            print("Erro ao processar dados recebidos: $e");
-          }
-        }
-      },
-      onPayloadTransferUpdate: (endid, payloadTransferUpdate) {
-        print("Status do envio: ${payloadTransferUpdate.status}");
-        print("Bytes transferidos: ${payloadTransferUpdate.bytesTransferred}");
-      },
-    );
-  }
-
-  Future<void> _captureAndSendImage() async {
     try {
-      final XFile? image = await _cameraController.takePicture();
-      if (image == null) return;
+      Nearby().acceptConnection(
+        widget.endpointId,
+        onPayLoadRecieved: (endid, payload) async {
+          if (payload.type == PayloadType.BYTES) {
+            try {
+              // Check if it's an image directly (like in chatPage)
+              if (_isImage(payload.bytes!)) {
+                final panicImage = PanicImage(
+                  imageBytes: payload.bytes!,
+                  sender: widget.device,
+                  receiver: user,
+                  timestamp: DateTime.now(),
+                  location: "Unknown",
+                  message: "Photo received",
+                );
 
-      Uint8List imageBytes = await image.readAsBytes();
-      Position position = await Geolocator.getCurrentPosition();
-
-      String location = "${position.latitude},${position.longitude}";
-      String message = "HELP!!! I'm here: $location";
-
-      var panicImage = PanicImage(
-        imageBytes: imageBytes,
-        sender: user,
-        receiver: widget.device, // Usar o dispositivo atual como receptor
-        timestamp: DateTime.now(),
-        location: location,
-        message: message,
+                setState(() {
+                  _images.add(panicImage);
+                  _saveImages();
+                });
+                _showNotification(widget.device, "Photo received");
+              }
+            } catch (e) {
+              print("Error processing payload: $e");
+            }
+          }
+        },
+        onPayloadTransferUpdate: (endid, payloadTransferUpdate) {},
       );
-
-      var payload = {
-        'imageBytes': base64Encode(imageBytes),
-        'sender': user,
-        'receiver': widget.device, // Usar o dispositivo atual como receptor
-        'timestamp': panicImage.timestamp.toIso8601String(),
-        'location': location,
-        'message': message,
-      };
-
-      String jsonData = jsonEncode(payload);
-      print("Preparando para enviar payload para ${widget.device}...");
-
-      try {
-        await Nearby().sendBytesPayload(widget.endpointId, utf8.encode(jsonData));
-        print("Payload enviado com sucesso para ${widget.endpointId}");
-      } catch (e) {
-        print("Erro ao enviar payload: $e");
-      }
-
-      setState(() {
-        _currentConversationImages.add(panicImage);
-        _saveCurrentConversationImages();
-      });
-
-    } catch (e) {
-      print("Erro ao capturar e enviar imagem: $e");
+    } catch (exception) {
+      print(exception);
     }
   }
 
-  void _saveCurrentConversationImages() {
-    List<String> imagesJson = _currentConversationImages
-        .map((img) => jsonEncode(img.toJson()))
-        .toList();
-    _box.put(_currentConversationKey, imagesJson);
-    print("Imagens salvas para conversa com ${widget.device}: ${imagesJson.length} itens");
+  bool _isImage(Uint8List bytes) {
+    return bytes.length >= 2 &&
+        bytes[0] == 0xFF &&
+        (bytes[1] == 0xD8 || // JPEG
+            bytes[1] == 0x89 || // PNG
+            bytes[1] == 0x47 || // GIF
+            bytes[1] == 0x49 || // TIFF
+            bytes[1] == 0x42); // BMP
   }
 
   void _openCamera() {
+    if (!_cameraController.value.isInitialized) {
+      return;
+    }
+
     setState(() => _cameraOpen = true);
     final gestureProvider = Provider.of<GestureProvider>(context, listen: false);
-    gestureProvider.setShakeDetectionEnabled(false);
+    gestureProvider.resetValues();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Foto de Emergência"),
+        title: const Text("Emergency Photo"),
         content: CameraPreview(_cameraController),
         actions: [
           TextButton(
@@ -219,14 +163,14 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
               Navigator.pop(context);
               _closeCamera();
             },
-            child: const Text("Cancelar"),
+            child: const Text("Cancel"),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _captureAndSendImage().then((_) => _closeCamera());
             },
-            child: const Text("Enviar Alerta"),
+            child: const Text("Send"),
           ),
         ],
       ),
@@ -235,54 +179,101 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
 
   void _closeCamera() {
     setState(() => _cameraOpen = false);
-    final gestureProvider = Provider.of<GestureProvider>(context, listen: false);
-    gestureProvider.setShakeDetectionEnabled(true);
+  }
+
+  Future<void> _captureAndSendImage() async {
+    try {
+      final XFile? image = await _cameraController.takePicture();
+      if (image == null) return;
+
+      Uint8List imageBytes = await image.readAsBytes();
+      Nearby().sendBytesPayload(widget.endpointId, imageBytes);
+
+      final panicImage = PanicImage(
+        imageBytes: imageBytes,
+        sender: user,
+        receiver: widget.device,
+        timestamp: DateTime.now(),
+        location: "Unknown",
+        message: "Emergency photo",
+      );
+
+      setState(() {
+        _images.add(panicImage);
+        _saveImages();
+      });
+    } catch (e) {
+      print("Error capturing and sending image: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to send photo")),
+      );
+    }
+  }
+
+  void _saveImages() {
+    String conversationKey = PanicImage.getConversationKey(user, widget.device);
+    List<String> imagesJson = _images
+        .map((img) => jsonEncode(img.toJson()))
+        .toList();
+    _box.put(conversationKey, imagesJson);
+  }
+
+  Future<void> _loadImages() async {
+    String conversationKey = PanicImage.getConversationKey(user, widget.device);
+    List<String>? imagesJson = _box.get(conversationKey);
+    if (imagesJson != null) {
+      setState(() {
+        _images = imagesJson
+            .map((json) => PanicImage.fromJson(jsonDecode(json)))
+            .toList();
+      });
+    }
+  }
+
+  void _clearHistory() {
+    String conversationKey = PanicImage.getConversationKey(user, widget.device);
+    _box.delete(conversationKey);
+    setState(() {
+      _images.clear();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Emergency Connection with ${widget.device}'),
+        title: Text('Emergency Photos with ${widget.device}'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _clearHistory,
+          ),
+        ],
       ),
       body: Column(
         children: [
           Expanded(
-            child: _currentConversationImages.isEmpty
+            child: _images.isEmpty
                 ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.photo_camera_outlined,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.3),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Nenhum alerta compartilhado ainda',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
-                    ),
-                  ),
-                ],
+              child: Text(
+                'No photos exchanged yet',
+                style: TextStyle(color: Colors.grey),
               ),
             )
                 : ListView.builder(
               reverse: true,
-              itemCount: _currentConversationImages.length,
+              itemCount: _images.length,
               itemBuilder: (context, index) {
-                final image = _currentConversationImages[_currentConversationImages.length - 1 - index];
-                return _buildMessageBubble(image);
+                final image = _images[_images.length - 1 - index];
+                return _buildImageItem(image);
               },
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: FloatingActionButton(
-              onPressed: _openCamera,
-              backgroundColor: Colors.red,
               child: const Icon(Icons.camera_alt),
+              onPressed: _openCamera,
             ),
           ),
         ],
@@ -290,35 +281,52 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
     );
   }
 
-  Widget _buildMessageBubble(PanicImage image) {
+  Widget _buildImageItem(PanicImage image) {
     final isMe = image.sender == user;
 
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Column(
-        crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          Text(image.sender, style: const TextStyle(fontWeight: FontWeight.bold)),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.4,
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment:
+          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.8,
+              ),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12.0),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black12,
+                    blurRadius: 6.0,
+                    offset: Offset(0, 2),
+                  )
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12.0),
+                child: Image.memory(
+                  image.imageBytes,
+                  fit: BoxFit.cover,
+                ),
+              ),
             ),
-            child: Image.memory(
-              image.imageBytes,
-              fit: BoxFit.contain,
+            Padding(
+              padding: const EdgeInsets.only(top: 4.0),
+              child: Text(
+                isMe ? 'You' : image.sender,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
             ),
-          ),
-          Text(DateFormat('HH:mm').format(image.timestamp)),
-          if (!isMe) Text(image.message),
-        ],
+          ],
+        ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _accelerometerStreamSubscription?.cancel();
-    _cameraController.dispose();
-    super.dispose();
   }
 }

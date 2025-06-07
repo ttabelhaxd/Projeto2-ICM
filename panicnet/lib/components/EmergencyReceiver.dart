@@ -18,6 +18,7 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
   final _box = Hive.box('panicnet');
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
+  bool _isConnected = false;
 
   @override
   void initState() {
@@ -34,38 +35,47 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
     await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  void _setupGlobalReceiver() {
-    Nearby().acceptConnection(
-      '',
-      onPayLoadRecieved: (endid, payload) async {
-        if (payload.type == PayloadType.BYTES) {
-          String receivedData = utf8.decode(payload.bytes!);
-          var data = jsonDecode(receivedData);
+  void _setupGlobalReceiver() async {
+    try {
+      await Nearby().stopAllEndpoints();
+      await Nearby().acceptConnection(
+        '',
+        onPayLoadRecieved: (endid, payload) async {
+          if (payload.type == PayloadType.BYTES) {
+            try {
+              String receivedData = utf8.decode(payload.bytes!);
+              var data = jsonDecode(receivedData);
 
-          if (data['receiver'] != null) {
-            var panicImage = PanicImage.fromJson(data);
-            String currentUser = _box.get('user');
+              if (data['receiver'] != null) {
+                var panicImage = PanicImage.fromJson(data);
+                String currentUser = _box.get('user', defaultValue: '');
 
-            if (panicImage.receiver == currentUser) {
-              String conversationKey = PanicImage.getConversationKey(
-                  panicImage.sender,
-                  panicImage.receiver
-              );
+                if (panicImage.receiver == currentUser) {
+                  String conversationKey = PanicImage.getConversationKey(
+                      panicImage.sender, panicImage.receiver);
 
-              List<String> currentConversation =
-              _box.get(conversationKey, defaultValue: []);
-              currentConversation.add(jsonEncode(panicImage.toJson()));
-              await _box.put(conversationKey, currentConversation);
+                  List<String> currentConversation =
+                  _box.get(conversationKey, defaultValue: []);
+                  currentConversation.add(jsonEncode(panicImage.toJson()));
+                  await _box.put(conversationKey, currentConversation);
 
-              _showNotification(
-                'Alerta de ${panicImage.sender}',
-                panicImage.message,
-              );
+                  _showNotification(
+                    'Alerta de ${panicImage.sender}',
+                    panicImage.message,
+                  );
+                }
+              }
+            } catch (e) {
+              print('Error processing payload: $e');
             }
           }
-        }
-      },
-    );
+        },
+      );
+      _isConnected = true;
+    } catch (e) {
+      print('Error setting up receiver: $e');
+      Future.delayed(const Duration(seconds: 5), () => _setupGlobalReceiver());
+    }
   }
 
   Future<void> _showNotification(String title, String body) async {
@@ -80,6 +90,12 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
     NotificationDetails(android: androidPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.show(
         0, title, body, platformChannelSpecifics);
+  }
+
+  @override
+  void dispose() {
+    Nearby().stopAllEndpoints();
+    super.dispose();
   }
 
   @override
