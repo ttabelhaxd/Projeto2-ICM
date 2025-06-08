@@ -65,7 +65,7 @@ class _HomePageState extends State<HomePage> {
     const NotificationDetails platformChannelSpecifics =
     NotificationDetails(android: androidPlatformChannelSpecifics);
     await flutterLocalNotificationsPlugin.show(
-      0, // Notification ID
+      0,
       title,
       body,
       platformChannelSpecifics,
@@ -73,12 +73,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _askPermissions() async {
-    // Location permission
-    await Permission.location.isGranted; // Check
-    await Permission.location.request(); // Ask
+    await Permission.location.isGranted;
+    await Permission.location.request();
 
     bool granted = !(await Future.wait([
-      // Check
       Permission.bluetooth.isGranted,
       Permission.bluetoothAdvertise.isGranted,
       Permission.bluetoothConnect.isGranted,
@@ -88,7 +86,6 @@ class _HomePageState extends State<HomePage> {
     ]))
         .any((element) => false);
     [
-      // Ask
       Permission.bluetooth,
       Permission.bluetoothAdvertise,
       Permission.bluetoothConnect,
@@ -227,11 +224,8 @@ class _HomePageState extends State<HomePage> {
                     onPayLoadRecieved: (endid, payload) async {
                       if (payload.type == PayloadType.BYTES) {
                         String str = String.fromCharCodes(payload.bytes!);
-                        // showSnackbar("$endid: $str");
 
                         if (str.contains(':')) {
-                          // used for file payload as file payload is mapped as
-                          // payloadId:filename
                           int payloadId = int.parse(str.split(':')[0]);
                           String fileName = (str.split(':')[1]);
                         }
@@ -246,8 +240,6 @@ class _HomePageState extends State<HomePage> {
                         print("failed");
                       } else if (payloadTransferUpdate.status ==
                           PayloadStatus.SUCCESS) {
-                        // showSnackbar(
-                        //"$endid success, total bytes = ${payloadTransferUpdate.totalBytes}");
                       }
                     },
                   );
@@ -331,7 +323,6 @@ class _HomePageState extends State<HomePage> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          // Seção de cabeçalho
           Container(
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(

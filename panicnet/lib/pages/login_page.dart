@@ -73,7 +73,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 40),
 
-                  // Formulário
                   Form(
                     key: _formKey,
                     child: TextFormField(
@@ -107,7 +106,6 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 32),
 
-                  // Botão
                   ValueListenableBuilder(
                     valueListenable: _started,
                     builder: (context, value, child) => ElevatedButton(

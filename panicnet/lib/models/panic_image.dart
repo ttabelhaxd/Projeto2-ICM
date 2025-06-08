@@ -6,7 +6,6 @@ class PanicImage {
   final String sender;
   final String receiver;
   final DateTime timestamp;
-  final String location;
   final String message;
 
   PanicImage({
@@ -14,7 +13,6 @@ class PanicImage {
     required this.sender,
     required this.receiver,
     required this.timestamp,
-    required this.location,
     required this.message,
   });
 
@@ -24,7 +22,6 @@ class PanicImage {
       'sender': sender,
       'receiver': receiver,
       'timestamp': timestamp.toIso8601String(),
-      'location': location,
       'message': message,
     };
   }
@@ -35,7 +32,6 @@ class PanicImage {
       sender: json['sender'],
       receiver: json['receiver'],
       timestamp: DateTime.parse(json['timestamp']),
-      location: json['location'],
       message: json['message'],
     );
   }
