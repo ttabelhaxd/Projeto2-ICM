@@ -104,22 +104,20 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
         onPayLoadRecieved: (endid, payload) async {
           if (payload.type == PayloadType.BYTES) {
             try {
-              // Check if it's an image directly (like in chatPage)
               if (_isImage(payload.bytes!)) {
                 final panicImage = PanicImage(
                   imageBytes: payload.bytes!,
                   sender: widget.device,
                   receiver: user,
                   timestamp: DateTime.now(),
-                  location: "Unknown",
-                  message: "Photo received",
+                  message: "Ajuda!!",
                 );
 
                 setState(() {
                   _images.add(panicImage);
                   _saveImages();
                 });
-                _showNotification(widget.device, "Photo received");
+                _showNotification(widget.device, "Foto recebida");
               }
             } catch (e) {
               print("Error processing payload: $e");
@@ -155,7 +153,7 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Emergency Photo"),
+        title: const Text("Foto de Emergência"),
         content: CameraPreview(_cameraController),
         actions: [
           TextButton(
@@ -163,14 +161,14 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
               Navigator.pop(context);
               _closeCamera();
             },
-            child: const Text("Cancel"),
+            child: const Text("Cancela"),
           ),
           TextButton(
             onPressed: () {
               Navigator.pop(context);
               _captureAndSendImage().then((_) => _closeCamera());
             },
-            child: const Text("Send"),
+            child: const Text("Enviar"),
           ),
         ],
       ),
@@ -194,8 +192,7 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
         sender: user,
         receiver: widget.device,
         timestamp: DateTime.now(),
-        location: "Unknown",
-        message: "Emergency photo",
+        message: "Foto de Emergência",
       );
 
       setState(() {
@@ -242,7 +239,7 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Emergency Photos with ${widget.device}'),
+        title: Text('Fotos de Emergência com ${widget.device}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.delete),
@@ -256,7 +253,7 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
             child: _images.isEmpty
                 ? Center(
               child: Text(
-                'No photos exchanged yet',
+                'Nenhuma emergência registada',
                 style: TextStyle(color: Colors.grey),
               ),
             )
@@ -272,8 +269,8 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: FloatingActionButton(
-              child: const Icon(Icons.camera_alt),
               onPressed: _openCamera,
+              child: const Icon(Icons.camera_alt),
             ),
           ),
         ],

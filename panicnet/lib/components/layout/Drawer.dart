@@ -22,7 +22,7 @@ class AppDrawer extends StatelessWidget {
                   height: 90,
                 ),
                 Text(
-                  "Welcome,\n$user",
+                  "Bem Vindo,\n$user",
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onBackground,
                     fontSize: 24,
@@ -54,7 +54,7 @@ class AppDrawer extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onBackground,
               ),
               title: Text(
-                'G A L L E R Y',
+                'G A L L E R I A',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.onBackground),
               ),
@@ -71,7 +71,7 @@ class AppDrawer extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onBackground,
               ),
               title: Text(
-                'S E T T I N G S',
+                'D E F I N I Ç Õ E S',
                 style: TextStyle(
                     color: Theme.of(context).colorScheme.onBackground),
               ),

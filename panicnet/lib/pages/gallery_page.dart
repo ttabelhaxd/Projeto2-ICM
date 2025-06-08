@@ -1,4 +1,3 @@
-// Updated gallery_page.dart
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:hive/hive.dart';
@@ -35,7 +34,6 @@ class _GalleryPageState extends State<GalleryPage> {
       }
     }
 
-    // Sort by timestamp (newest first)
     allImages.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
     setState(() {
@@ -47,7 +45,7 @@ class _GalleryPageState extends State<GalleryPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emergency Alerts Gallery'),
+        title: const Text('Galeria de Emergências'),
         centerTitle: true,
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -64,7 +62,7 @@ class _GalleryPageState extends State<GalleryPage> {
         ),
         const SizedBox(height: 16),
         Text(
-          'No emergency alerts recorded',
+          'Nenhuma emergência gravada',
           style: TextStyle(
             color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5),
           ),
@@ -205,23 +203,13 @@ class _GalleryPageState extends State<GalleryPage> {
                       ),
                       _buildDetailRow(
                         icon: Icons.calendar_today,
-                        title: 'Date',
+                        title: 'Data',
                         value: DateFormat('MMMM dd, yyyy').format(image.timestamp),
                       ),
                       _buildDetailRow(
                         icon: Icons.access_time,
-                        title: 'Time',
+                        title: 'Tempo',
                         value: DateFormat('HH:mm:ss').format(image.timestamp),
-                      ),
-                      _buildDetailRow(
-                        icon: Icons.location_on,
-                        title: 'Location',
-                        value: image.location,
-                      ),
-                      _buildDetailRow(
-                        icon: Icons.message,
-                        title: 'Message',
-                        value: image.message,
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton(
@@ -232,7 +220,7 @@ class _GalleryPageState extends State<GalleryPage> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                         ),
-                        child: const Text('Close'),
+                        child: const Text('Fechar'),
                       ),
                     ],
                   ),
