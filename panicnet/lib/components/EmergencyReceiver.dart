@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:panicnet/models/panic_image.dart';
@@ -19,6 +20,16 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
   FlutterLocalNotificationsPlugin();
   bool _isConnected = false;
+
+  bool _isImage(Uint8List bytes) {
+    return bytes.length >= 2 &&
+        bytes[0] == 0xFF &&
+        (bytes[1] == 0xD8 || // JPEG
+            bytes[1] == 0x89 || // PNG
+            bytes[1] == 0x47 || // GIF
+            bytes[1] == 0x49 || // TIFF
+            bytes[1] == 0x42); // BMP
+  }
 
   @override
   void initState() {
@@ -46,7 +57,7 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
               String receivedData = utf8.decode(payload.bytes!);
               var data = jsonDecode(receivedData);
 
-              if (data['receiver'] != null) {
+              if (data['imageBytes'] != null) {
                 var panicImage = PanicImage.fromJson(data);
                 String currentUser = _box.get('user', defaultValue: '');
 
@@ -67,6 +78,29 @@ class _EmergencyReceiverState extends State<EmergencyReceiver> {
               }
             } catch (e) {
               print('Error processing payload: $e');
+              // Fallback para formato antigo (apenas imagem)
+              if (_isImage(payload.bytes!)) {
+                var panicImage = PanicImage(
+                  imageBytes: payload.bytes!,
+                  sender: 'Unknown',
+                  receiver: _box.get('user', defaultValue: ''),
+                  timestamp: DateTime.now(),
+                  message: "Emergency photo received",
+                );
+
+                String conversationKey = PanicImage.getConversationKey(
+                    panicImage.sender, panicImage.receiver);
+
+                List<String> currentConversation =
+                _box.get(conversationKey, defaultValue: []);
+                currentConversation.add(jsonEncode(panicImage.toJson()));
+                await _box.put(conversationKey, currentConversation);
+
+                _showNotification(
+                  'Emergency Photo Received',
+                  'New emergency photo received',
+                );
+              }
             }
           }
         },

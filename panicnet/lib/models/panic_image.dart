@@ -7,6 +7,8 @@ class PanicImage {
   final String receiver;
   final DateTime timestamp;
   final String message;
+  final double? latitude;
+  final double? longitude;
 
   PanicImage({
     required this.imageBytes,
@@ -14,6 +16,8 @@ class PanicImage {
     required this.receiver,
     required this.timestamp,
     required this.message,
+    this.latitude,
+    this.longitude,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,6 +27,8 @@ class PanicImage {
       'receiver': receiver,
       'timestamp': timestamp.toIso8601String(),
       'message': message,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 
@@ -33,6 +39,8 @@ class PanicImage {
       receiver: json['receiver'],
       timestamp: DateTime.parse(json['timestamp']),
       message: json['message'],
+      latitude: json['latitude']?.toDouble(),
+      longitude: json['longitude']?.toDouble(),
     );
   }
 

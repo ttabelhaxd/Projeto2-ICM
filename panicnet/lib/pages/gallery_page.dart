@@ -211,6 +211,12 @@ class _GalleryPageState extends State<GalleryPage> {
                         title: 'Tempo',
                         value: DateFormat('HH:mm:ss').format(image.timestamp),
                       ),
+                      if (image.latitude != null && image.longitude != null)
+                        _buildDetailRow(
+                          icon: Icons.location_on,
+                          title: 'Localização',
+                          value: '${image.latitude!.toStringAsFixed(4)}, ${image.longitude!.toStringAsFixed(4)}',
+                        ),
                       const SizedBox(height: 24),
                       ElevatedButton(
                         onPressed: () => Navigator.pop(context),

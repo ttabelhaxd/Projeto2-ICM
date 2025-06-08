@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:panicnet/models/panic_image.dart';
 import 'package:nearby_connections/nearby_connections.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -50,6 +51,32 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
     _accelerometerStreamSubscription.cancel();
     _cameraController.dispose();
     super.dispose();
+  }
+
+  Future<Position?> _getCurrentLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return null;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return null;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return null;
+      }
+
+      return await Geolocator.getCurrentPosition();
+    } catch (e) {
+      print("Error getting location: $e");
+      return null;
+    }
   }
 
   void _initializeLocalNotifications() async {
@@ -104,6 +131,20 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
         onPayLoadRecieved: (endid, payload) async {
           if (payload.type == PayloadType.BYTES) {
             try {
+              String receivedData = utf8.decode(payload.bytes!);
+              var data = jsonDecode(receivedData);
+
+              if (data['imageBytes'] != null) {
+                final panicImage = PanicImage.fromJson(data);
+
+                setState(() {
+                  _images.add(panicImage);
+                  _saveImages();
+                });
+                _showNotification(widget.device, panicImage.message);
+              }
+            } catch (e) {
+              print("Error processing payload: $e");
               if (_isImage(payload.bytes!)) {
                 final panicImage = PanicImage(
                   imageBytes: payload.bytes!,
@@ -119,8 +160,6 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
                 });
                 _showNotification(widget.device, "Foto recebida");
               }
-            } catch (e) {
-              print("Error processing payload: $e");
             }
           }
         },
@@ -185,14 +224,23 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
       if (image == null) return;
 
       Uint8List imageBytes = await image.readAsBytes();
-      Nearby().sendBytesPayload(widget.endpointId, imageBytes);
+      Position? position = await _getCurrentLocation();
 
       final panicImage = PanicImage(
         imageBytes: imageBytes,
         sender: user,
         receiver: widget.device,
         timestamp: DateTime.now(),
-        message: "Foto de Emergência",
+        message: position != null
+            ? "Help!!! I'm here: ${position.latitude}, ${position.longitude}"
+            : "Help!!! [Location unavailable]",
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+
+      Nearby().sendBytesPayload(
+          widget.endpointId,
+          utf8.encode(jsonEncode(panicImage.toJson()))
       );
 
       setState(() {
@@ -202,7 +250,7 @@ class _PhotoSharePageState extends State<PhotoSharePage> {
     } catch (e) {
       print("Error capturing and sending image: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to send photo")),
+        SnackBar(content: Text("Failed to send photo: ${e.toString()}")),
       );
     }
   }

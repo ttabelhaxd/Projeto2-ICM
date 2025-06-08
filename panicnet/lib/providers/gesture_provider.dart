@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
 class GestureProvider extends ChangeNotifier {
-  static const double threshold = 10;
+  static const double threshold = 15;
   static const int shakeCountThreshold = 3;
   static const Duration shakeTimeout = Duration(milliseconds: 1000);
 
